@@ -11,8 +11,8 @@ export class MyEc2Stack extends cdk.Stack {
             maxAzs: 1,
             subnetConfiguration: [
                 {
-                  subnetType: ec2.SubnetType.PUBLIC,
-                  name: 'Ingress'
+                    subnetType: ec2.SubnetType.PUBLIC,
+                    name: 'Ingress'
                 }
             ]
         });
@@ -33,24 +33,32 @@ export class MyEc2Stack extends cdk.Stack {
             ],
         });
         const profile = new iam.CfnInstanceProfile(this, 'myProfile', {
-            roles: [ iamRole.roleName ]
+            roles: [iamRole.roleName]
         });
         const ssmaUserData = ec2.UserData.forLinux();
-        const SSM_AGENT_RPM='https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm';
-        ssmaUserData.addCommands(`sudo yum install -y ${SSM_AGENT_RPM}`, 'restart amazon-ssm-agent');
+        const SSM_AGENT_RPM = 'https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm';
+        ssmaUserData.addCommands(
+            `sudo yum install -y ${SSM_AGENT_RPM}`,
+            'restart amazon-ssm-agent',
+            'sudo yum install -y java-1.8.0-openjdk-devel.x86_64',
+            'curl https://bintray.com/sbt/rpm/rpm | sudo tee /etc/yum.repos.d/bintray-sbt-rpm.repo',
+            'sudo yum install -y sbt',
+            'sbt --version');
         const ec2Instance = new ec2.CfnInstance(this, 'myInstance', {
             imageId: linuxImage.imageId,
-            instanceType: new ec2.InstanceType('t3.small').toString(),
+            instanceType: new ec2.InstanceType('t3.large').toString(),
+            keyName: 'sample-muraki',
             networkInterfaces: [{
-              associatePublicIpAddress: true,
-              deviceIndex: '0',
-              groupSet: [securityGroup.securityGroupId],
-              subnetId: vpc.publicSubnets[0].subnetId
+                associatePublicIpAddress: true,
+                deviceIndex: '0',
+                groupSet: [securityGroup.securityGroupId],
+                subnetId: vpc.publicSubnets[0].subnetId
             }],
             userData: cdk.Fn.base64(ssmaUserData.render()),
             iamInstanceProfile: profile.ref
         });
+        new cdk.CfnOutput(this, 'EC2 InstanceId', { value: ec2Instance.ref });
     }
-  }
+}
 
 new MyEc2Stack(new cdk.App(), 'MyEc2Stack');
