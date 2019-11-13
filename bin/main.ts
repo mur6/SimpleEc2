@@ -20,8 +20,11 @@ export class MyEc2Stack extends cdk.Stack {
             description: 'Allow all outbound from ec2 instances',
             allowAllOutbound: true
         });
-        let ec2Instance = new ec2.CfnInstance(this, 'myInstance', {
-            imageId: new ec2.AmazonLinuxImage().getImage(this).imageId,
+        const linuxImage = new ec2.AmazonLinuxImage({
+            generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2
+        }).getImage(this);
+        const ec2Instance = new ec2.CfnInstance(this, 'myInstance', {
+            imageId: linuxImage.imageId,
             instanceType: new ec2.InstanceType('t3.small').toString(),
             networkInterfaces: [{
               associatePublicIpAddress: true,
