@@ -40,9 +40,10 @@ export class MyEc2Stack extends cdk.Stack {
         ssmaUserData.addCommands(
             `sudo yum install -y ${SSM_AGENT_RPM}`,
             'restart amazon-ssm-agent',
-            'sudo yum install -y java-1.8.0-openjdk-devel.x86_64',
             'curl https://bintray.com/sbt/rpm/rpm | sudo tee /etc/yum.repos.d/bintray-sbt-rpm.repo',
-            'sudo yum install -y sbt',
+            'sudo yum update -y',
+            'sudo yum install -y java-1.8.0-openjdk-devel.x86_64',
+            'sudo yum install -y sbt git',
             'sbt --version');
         const ec2Instance = new ec2.CfnInstance(this, 'myInstance', {
             imageId: linuxImage.imageId,
