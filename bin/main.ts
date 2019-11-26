@@ -56,8 +56,10 @@ export class MyEc2Stack extends cdk.Stack {
                 subnetId: vpc.publicSubnets[0].subnetId
             }],
             userData: cdk.Fn.base64(ssmaUserData.render()),
-            iamInstanceProfile: profile.ref
+            iamInstanceProfile: profile.ref,
+            monitoring: true
         });
+        cdk.Tag.add(ec2Instance, 'Name', 'python-calc-server');
         new cdk.CfnOutput(this, 'EC2 InstanceId', { value: ec2Instance.ref });
     }
 }
