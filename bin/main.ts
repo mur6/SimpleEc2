@@ -2,6 +2,7 @@
 import 'source-map-support/register';
 import cdk = require('@aws-cdk/core');
 import ec2 = require('@aws-cdk/aws-ec2');
+import ecr = require("@aws-cdk/aws-ecr");
 import iam = require('@aws-cdk/aws-iam');
 
 export class MyEc2Stack extends cdk.Stack {
@@ -43,8 +44,12 @@ export class MyEc2Stack extends cdk.Stack {
             'curl https://bintray.com/sbt/rpm/rpm | sudo tee /etc/yum.repos.d/bintray-sbt-rpm.repo',
             'sudo yum update -y',
             'sudo yum install -y java-1.8.0-openjdk-devel.x86_64',
-            'sudo yum install -y sbt git',
-            'sbt --version');
+            'sudo yum install -y sbt git docker',
+            'sudo service docker start',
+            'sudo usermod -a -G docker ec2-user',
+            'region=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e "s/.$//")',
+            'export AWS_DEFAULT_REGION=${region}');
+            //'sbt --version'
         const ec2Instance = new ec2.CfnInstance(this, 'myInstance', {
             imageId: linuxImage.imageId,
             instanceType: new ec2.InstanceType('t3.large').toString(),
@@ -60,7 +65,13 @@ export class MyEc2Stack extends cdk.Stack {
             monitoring: true
         });
         cdk.Tag.add(ec2Instance, 'Name', 'python-calc-server');
+
+        const repository = new ecr.Repository(this, 'python-predict');
+        repository.grantPull(iamRole);
+        //repository.addToResourcePolicy(iamRole)
+
         new cdk.CfnOutput(this, 'EC2 InstanceId', { value: ec2Instance.ref });
+        new cdk.CfnOutput(this, 'EC2 attrPrivateDnsName', { value: ec2Instance.attrPrivateDnsName });
     }
 }
 
