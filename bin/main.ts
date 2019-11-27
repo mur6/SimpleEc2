@@ -66,13 +66,37 @@ export class MyEc2Stack extends cdk.Stack {
         });
         cdk.Tag.add(ec2Instance, 'Name', 'python-calc-server');
 
+        const myAmi = new ec2.LookupMachineImage({
+            name: 'python-calc-server'
+        }).getImage(this);
+        const scalaClient = new ec2.CfnInstance(this, 'scalaClient', {
+            imageId: myAmi.imageId,
+            instanceType: new ec2.InstanceType('t3.small').toString(),
+            keyName: 'sample-muraki',
+            networkInterfaces: [{
+                associatePublicIpAddress: true,
+                deviceIndex: '0',
+                groupSet: [securityGroup.securityGroupId],
+                subnetId: vpc.publicSubnets[0].subnetId
+            }],
+            //userData: cdk.Fn.base64(ssmaUserData.render()),
+            iamInstanceProfile: profile.ref,
+            monitoring: true
+        });
+        cdk.Tag.add(scalaClient, 'Name', 'python-calc-loadtest-client');
+
         const repository = new ecr.Repository(this, 'python-predict');
         repository.grantPull(iamRole);
         //repository.addToResourcePolicy(iamRole)
 
-        new cdk.CfnOutput(this, 'EC2 InstanceId', { value: ec2Instance.ref });
-        new cdk.CfnOutput(this, 'EC2 attrPrivateDnsName', { value: ec2Instance.attrPrivateDnsName });
+        new cdk.CfnOutput(this, 'Server InstanceId', { value: ec2Instance.ref });
+        new cdk.CfnOutput(this, 'Client InstanceId', { value: scalaClient.ref });
     }
 }
 
-new MyEc2Stack(new cdk.App(), 'MyEc2Stack');
+new MyEc2Stack(new cdk.App(), 'MyEc2Stack', {
+    env: {
+        account: process.env.CDK_DEFAULT_ACCOUNT,
+        region: process.env.CDK_DEFAULT_REGION
+    }
+});
