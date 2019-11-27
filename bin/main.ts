@@ -22,6 +22,7 @@ export class MyEc2Stack extends cdk.Stack {
             description: 'Allow all outbound from ec2 instances',
             allowAllOutbound: true
         });
+        securityGroup.addIngressRule(ec2.Peer.ipv4("10.0.0.0/16"), ec2.Port.tcp(5000), 'allow inbound 5000') // 効いていないっぽい。
         const linuxImage = new ec2.AmazonLinuxImage({
             generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2
         }).getImage(this);
@@ -36,23 +37,28 @@ export class MyEc2Stack extends cdk.Stack {
         const profile = new iam.CfnInstanceProfile(this, 'myProfile', {
             roles: [iamRole.roleName]
         });
-        const ssmaUserData = ec2.UserData.forLinux();
-        const SSM_AGENT_RPM = 'https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm';
-        ssmaUserData.addCommands(
-            `sudo yum install -y ${SSM_AGENT_RPM}`,
-            'restart amazon-ssm-agent',
-            'curl https://bintray.com/sbt/rpm/rpm | sudo tee /etc/yum.repos.d/bintray-sbt-rpm.repo',
-            'sudo yum update -y',
-            'sudo yum install -y java-1.8.0-openjdk-devel.x86_64',
-            'sudo yum install -y sbt git docker',
-            'sudo service docker start',
-            'sudo usermod -a -G docker ec2-user',
-            'region=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e "s/.$//")',
-            'export AWS_DEFAULT_REGION=${region}');
-            //'sbt --version'
+        // const ssmaUserData = ec2.UserData.forLinux();
+        // const SSM_AGENT_RPM = 'https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm';
+        // ssmaUserData.addCommands(
+        //     `sudo yum install -y ${SSM_AGENT_RPM}`,
+        //     'restart amazon-ssm-agent',
+        //     'curl https://bintray.com/sbt/rpm/rpm | sudo tee /etc/yum.repos.d/bintray-sbt-rpm.repo',
+        //     'sudo yum update -y',
+        //     'sudo yum install -y java-1.8.0-openjdk-devel.x86_64',
+        //     'sudo yum install -y sbt git docker',
+        //     'sudo service docker start',
+        //     'sudo usermod -a -G docker ec2-user',
+        //     'region=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e "s/.$//")',
+        //     'export AWS_DEFAULT_REGION=${region}'
+        // );
+
+        const myAmi = new ec2.LookupMachineImage({
+            name: 'python-calc-server'
+        }).getImage(this);
+
         const ec2Instance = new ec2.CfnInstance(this, 'myInstance', {
-            imageId: linuxImage.imageId,
-            instanceType: new ec2.InstanceType('t3.large').toString(),
+            imageId: myAmi.imageId,
+            instanceType: new ec2.InstanceType('t3.xlarge').toString(),
             keyName: 'sample-muraki',
             networkInterfaces: [{
                 associatePublicIpAddress: true,
@@ -60,15 +66,12 @@ export class MyEc2Stack extends cdk.Stack {
                 groupSet: [securityGroup.securityGroupId],
                 subnetId: vpc.publicSubnets[0].subnetId
             }],
-            userData: cdk.Fn.base64(ssmaUserData.render()),
+            //userData: cdk.Fn.base64(ssmaUserData.render()),
             iamInstanceProfile: profile.ref,
             monitoring: true
         });
         cdk.Tag.add(ec2Instance, 'Name', 'python-calc-server');
 
-        const myAmi = new ec2.LookupMachineImage({
-            name: 'python-calc-server'
-        }).getImage(this);
         const scalaClient = new ec2.CfnInstance(this, 'scalaClient', {
             imageId: myAmi.imageId,
             instanceType: new ec2.InstanceType('t3.small').toString(),
